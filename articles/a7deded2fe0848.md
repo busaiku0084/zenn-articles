@@ -1,3 +1,15 @@
+---
+title: "Githubに自動で草を生やす方法"
+emoji: "🎄"
+type: "tech"
+topics:
+  - "git"
+  - "github"
+  - "githubactions"
+published: true
+published_at: "2024-12-09 02:03"
+---
+
 ## はじめに
 「Githubに毎日草を生やしたい！」と思ったことはありませんか？
 
