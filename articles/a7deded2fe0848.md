@@ -1,0 +1,141 @@
+## はじめに
+「Githubに毎日草を生やしたい！」と思ったことはありませんか？
+
+草（コントリビューション）が毎日生えていると、なんだか達成感があったり、継続している実感を得られたりします。
+そこで、今回はGitHub Actionsを使って、自動的に草を生やす方法を紹介します！
+ちょっとしたコードで手軽に実現できるので、ぜひ試してみてください。
+
+## 実装方法
+まずは、以下を準備します。
+
+#### Githubリポジトリ
+草を生やすためのリポジトリを1つ作成します。
+
+#### Personal Access Token (PAT)
+自動的にリポジトリへコミットするためのトークンを発行します。
+公式ドキュメントを参考に作成し、リポジトリのSettings > Secrets and variables > Actionsに保存します。
+
+#### 環境変数
+コミット時に使用する名前やメールアドレスを環境変数として設定します。
+Settings > Secrets and variables > Actions > Variablesで設定可能です。
+
+### コード例
+リポジトリの`.github/workflows`フォルダに`daily-commit.yml`という名前で以下のファイルを保存してください。
+
+```yaml : daily-commit.yml
+name: Daily Commit
+
+on:
+  schedule:
+    - cron: '0 23 * * *'  # 毎日23時に実行 (UTC) -> 日本時間8時 (JST)
+  workflow_dispatch:  # 手動トリガーでの実行も可能
+
+jobs:
+  daily-commit:
+    runs-on: ubuntu-22.04
+
+    env:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      COMMIT_USER_NAME: ${{ vars.COMMIT_USER_NAME }}
+      COMMIT_USER_EMAIL: ${{ vars.COMMIT_USER_EMAIL }}
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        repository: ${{ github.repository }}
+
+    - name: Make a commit
+      run: |
+        echo -e "Auto commit on $(TZ='Asia/Tokyo' date)" >> README.md
+        git config user.name "${{ env.COMMIT_USER_NAME }}"
+        git config user.email "${{ env.COMMIT_USER_EMAIL }}"
+        git add README.md
+        git commit -m "Auto commit on $(date)" || echo "No changes to commit"
+
+    - name: Push changes
+      run: |
+        git push origin main
+```
+
+## 解説: `secrets.`と`vars.`について
+このサンプルコードには、`secrets.`と`vars.`という記述があります。
+これらはGitHub Actionsで使用する設定値を指定するための仕組みです。
+
+### `secrets.`について
+`secrets.`は、機密性の高い情報（例: APIトークン、パスワードなど）を安全に保存し、ワークフロー内で利用できるようにするものです。
+
+#### 設定方法
+リポジトリの「Settings > Secrets and variables > Actions」に移動。
+「Secrets」のセクションで`PERSONAL_ACCESS_TOKEN`を追加。
+トークンの値はGitHubのPersonal Access Token作成ページから取得できます。
+
+#### コード内の利用例
+```yaml
+env:
+  PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+```
+
+### `vars.`について
+`vars.`は、秘密である必要はないが頻繁に使用する設定値を管理するための仕組みです。
+`vars.`を使うことでコードがスッキリし、管理が楽になります。
+
+#### 設定方法
+リポジトリの「Settings > Secrets and variables > Actions」に移動。
+「Variables」のセクションで`COMMIT_USER_NAME`と`COMMIT_USER_EMAIL`を追加。
+`COMMIT_USER_NAME`にはGitのユーザー名、`COMMIT_USER_EMAIL`にはGitで使うメールアドレスを設定。
+
+#### コード内の利用例
+```yaml
+env:
+  COMMIT_USER_NAME: ${{ vars.COMMIT_USER_NAME }}
+  COMMIT_USER_EMAIL: ${{ vars.COMMIT_USER_EMAIL }}
+```
+
+### `secrets.`と`vars.`の違い
+| 項目          | secrets                      | vars                         |
+|---------------|------------------------------|------------------------------|
+| **利用目的**   | 機密情報（トークンやパスワード） | 通常の設定値（名前やメール）   |
+| **セキュリティ** | 値はマスク処理され非表示        | 値は一般的に見える            |
+| **設定例**     | APIキー、トークン             | 環境変数（ユーザー名など）     |
+
+
+## 補足
+以下は、初心者にとって理解が難しそうな箇所を補足した内容です。
+
+### scheduleの`cron`について
+`cron: '0 23 * * *'`は毎日UTCの23時に実行する設定です。
+UTCと日本時間（JST）の時差は9時間なので、日本時間では翌朝8時に実行されます。
+
+cronの書式は以下のように5つのフィールドで構成されます。
+
+```
+分 時 日 月 曜日
+```
+### `|| echo "No changes to commit"`
+この部分は、`git commit`コマンドで変更がない場合のエラーを無視するための記述です。
+エラーが発生しても後続の処理に進めるようにしています。
+
+## 実行サンプル
+以下のように、自動で`README.md`に「Auto commit」のログが追加されます。
+
+```md : README.md
+Auto commit on 2024-12-09 08:00:00 JST
+```
+
+実行が成功しているかどうかは、リポジトリの「Actions」タブで確認できます。
+
+## 料金について
+GitHub Actionsは、無料プランでも十分利用可能です。
+ただし、無料枠（2,000分/月）を超えると課金されるので、複雑なワークフローや高頻度の実行を行う際は注意が必要です。
+
+## さいごに
+これで、毎日自動的に草を生やす方法を実現できました！
+今回紹介した方法は基本的な仕組みですが、工夫次第で色々と応用が可能です。
+たとえば、毎日のToDoリストを更新したり、自動的にログを記録する仕組みを作ることもできます。
+
+ぜひ、自分だけのオリジナルな「草生やしシステム」を作ってみてくださいね！😊
+
+---
+この記事が役に立ったと思ったら、ぜひ「いいね」や「シェア」をお願いします！😊
